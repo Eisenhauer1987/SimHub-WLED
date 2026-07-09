@@ -1,40 +1,45 @@
-﻿using System.Windows;
+using System;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace Halcyon.WLED
 {
-    /// <summary>
-    /// Logique d'interaction pour SettingsControlDemo.xaml
-    /// </summary>
     public partial class SettingsControl : UserControl
     {
-        public WLED Plugin { get; }
+        private readonly WLED plugin;
 
-        public SettingsControl()
+        public SettingsControl(WLED plugin)
         {
             InitializeComponent();
-        }
+            this.plugin = plugin;
 
-        public SettingsControl(WLED plugin) : this()
-        {
-            this.Plugin = plugin;
-            UrlInput.Text = Plugin.Settings.stripUrl;
-            PortInput.Text = Plugin.Settings.stripPort.ToString();
-            LedAmout.Text = Plugin.Settings.ledAmount.ToString();
-            LedOffset.Text = Plugin.Settings.offset.ToString();
-            Mirror.IsChecked = Plugin.Settings.mirror;
-            Center.IsChecked = Plugin.Settings.center;
+            UrlInput.Text = plugin.Settings.stripUrl;
+            PortInput.Text = plugin.Settings.stripPort.ToString();
+            LedAmountInput.Text = plugin.Settings.ledAmount.ToString();
+            LedOffsetInput.Text = plugin.Settings.offset.ToString();
+            MirrorInput.IsChecked = plugin.Settings.mirror;
+            CenterInput.IsChecked = plugin.Settings.center;
+            RiseColorInput.Text = plugin.Settings.RiseColor;
+            MaxColorInput.Text = plugin.Settings.MaxColor;
         }
 
         private void Apply(object sender, RoutedEventArgs e)
         {
-            SimHub.Logging.Current.Info("Apply Settings");
-            Plugin.Settings.stripUrl = UrlInput.Text;
-            Plugin.Settings.stripPort = int.Parse(PortInput.Text);
-            Plugin.Settings.ledAmount = int.Parse(LedAmout.Text);
-            Plugin.Settings.offset = int.Parse(LedOffset.Text);
-            Plugin.Settings.mirror = (bool) Mirror.IsChecked;
-            Plugin.Settings.center = (bool) Center.IsChecked;
+            plugin.Settings.stripUrl = UrlInput.Text;
+            plugin.Settings.stripPort = ParseInt(PortInput.Text, 21324);
+            plugin.Settings.ledAmount = ParseInt(LedAmountInput.Text, 60);
+            plugin.Settings.offset = ParseInt(LedOffsetInput.Text, 0);
+            plugin.Settings.mirror = MirrorInput.IsChecked == true;
+            plugin.Settings.center = CenterInput.IsChecked == true;
+            plugin.Settings.RiseColor = RiseColorInput.Text;
+            plugin.Settings.MaxColor = MaxColorInput.Text;
+
+            plugin.SaveCommonSettings("GeneralSettings", plugin.Settings);
+        }
+
+        private int ParseInt(string value, int fallback)
+        {
+            return int.TryParse(value, out var result) ? result : fallback;
         }
     }
 }
