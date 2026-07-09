@@ -9,7 +9,9 @@ namespace Halcyon.WLED
         public bool mirror { get; set; } = false;
         public bool center { get; set; } = false;
 
-        public string RiseColor { get; set; } = "#0000FF";
         public string MaxColor { get; set; } = "#FF0000";
+        // Comma-separated list of hex colors for the intermediate segments (left-to-right)
+        // Exactly three segment colors are expected.
+        public string SegmentColors { get; set; } = "#0000FF,#00FF00,#FFFF00";
     }
 }

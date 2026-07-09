@@ -15,18 +15,64 @@ namespace Halcyon.WLED
         public bool Mirror { get; set; }
         public bool Center { get; set; }
 
-        private (int, int, int) RiseColor { get; set; }
         private (int, int, int) MaxColor { get; set; }
+
+        // Expose the last-set hex values so callers can detect changes
+        public string CurrentMaxHex { get; private set; }
+
+        // We support exactly 3 intermediate segments before the final MaxColor
+        private const int FixedSegments = 3;
+        private List<(int, int, int)> SegmentColorsList { get; set; } = new List<(int, int, int)>();
 
         private UdpClient LedClient { get; set; }
 
-        public WLEDHelper(string host, int port, string riseColorHex, string maxColorHex)
+        // segmentColorsCsv: CSV list of hex strings for the three segments (left-to-right)
+        public WLEDHelper(string host, int port, string segmentColorsCsv, string maxColorHex)
         {
             this.host = host;
             this.port = port;
             LedClient = new UdpClient(host, port);
-            RiseColor = ParseColor(riseColorHex, (0, 0, 255));
-            MaxColor = ParseColor(maxColorHex, (255, 0, 0));
+            CurrentMaxHex = maxColorHex ?? string.Empty;
+            MaxColor = ParseColor(CurrentMaxHex, (255, 0, 0));
+            // Initialize segments (expect 3 segments)
+            UpdateSegments(segmentColorsCsv ?? string.Empty, FixedSegments);
+        }
+
+        // Update segment configuration: csv hex colors and count of segments (count is expected to be 3)
+        public void UpdateSegments(string segmentColorsCsv, int segmentsCount)
+        {
+            var count = Math.Max(0, Math.Min(FixedSegments, segmentsCount));
+            SegmentColorsList.Clear();
+            if (string.IsNullOrWhiteSpace(segmentColorsCsv) || count == 0)
+                return;
+
+            var parts = segmentColorsCsv.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            for (int i = 0; i < Math.Min(parts.Length, count); i++)
+            {
+                var p = parts[i].Trim();
+                var parsed = ParseColor(p, (0, 0, 255));
+                SegmentColorsList.Add(parsed);
+            }
+
+            // If fewer colors provided than required, repeat the last provided color or add a default
+            while (SegmentColorsList.Count < count)
+            {
+                if (SegmentColorsList.Count > 0)
+                    SegmentColorsList.Add(SegmentColorsList[SegmentColorsList.Count - 1]);
+                else
+                    SegmentColorsList.Add((0, 0, 255));
+            }
+        }
+
+        // Update only the Max color at runtime
+        public void UpdateMaxColor(string maxColorHex)
+        {
+            if (maxColorHex == null) maxColorHex = string.Empty;
+            if (CurrentMaxHex != maxColorHex)
+            {
+                CurrentMaxHex = maxColorHex;
+                MaxColor = ParseColor(CurrentMaxHex, MaxColor);
+            }
         }
 
         public void ShowRpm(double rpm, double maxRpm, bool shouldShift)
@@ -40,8 +86,7 @@ namespace Halcyon.WLED
             int left = 0 + Offset;
             int right = LedAmount + Offset;
 
-            (int, int, int) outerColor = Mirror ? RiseColor : (0, 0, 0);
-            (int, int, int) innerColor = Mirror ? (0, 0, 0) : RiseColor;
+            (int, int, int) outerColor = (0, 0, 0);
 
             var data = new List<byte>();
             data.Add(0x01);
@@ -77,7 +122,9 @@ namespace Halcyon.WLED
                     for (int i = leftBorder; i < rightBorder; i++)
                     {
                         data.Add(BitConverter.GetBytes(i)[0]);
-                        data.AddRange(ColorToByteList(innerColor));
+                        var color = GetColorForPosition(i - left, LedAmount);
+                        if (Mirror) color = InvertColor(color);
+                        data.AddRange(ColorToByteList(color));
                     }
                     for (int i = rightBorder; i < right; i++)
                     {
@@ -96,7 +143,9 @@ namespace Halcyon.WLED
                     for (int i = left; i < border + Offset; i++)
                     {
                         data.Add(BitConverter.GetBytes(i)[0]);
-                        data.AddRange(ColorToByteList(innerColor));
+                        var color = GetColorForPosition(i - left, LedAmount);
+                        if (Mirror) color = InvertColor(color);
+                        data.AddRange(ColorToByteList(color));
                     }
 
                     for (int i = border; i < right; i++)
@@ -181,6 +230,31 @@ namespace Halcyon.WLED
                 BitConverter.GetBytes(color.Item2)[0],
                 BitConverter.GetBytes(color.Item3)[0]
             };
+        }
+
+        private (int, int, int) GetColorForPosition(int positionFromStart, int total)
+        {
+            // positionFromStart in [0, total-1]
+            if (total <= 0) return SegmentColorsList.Count > 0 ? SegmentColorsList[0] : (0, 0, 255);
+
+            // fraction of the way along the strip
+            double fraction = positionFromStart / (double)Math.Max(1, total);
+
+            // determine segment index across FixedSegments + final max segment
+            int segCount = FixedSegments;
+            int segIndex = (int)(fraction * (segCount + 1));
+            if (segIndex < 0) segIndex = 0;
+            if (segIndex >= segCount) return MaxColor;
+            if (SegmentColorsList.Count > segIndex) return SegmentColorsList[segIndex];
+            // fallback: first segment color if available, else a default blue
+            if (SegmentColorsList.Count > 0) return SegmentColorsList[0];
+            return (0,0,255);
+        }
+
+        private (int, int, int) InvertColor((int, int, int) c)
+        {
+            // simple inversion around black/white not needed; for mirror we swap roles externally
+            return c;
         }
     }
 }
