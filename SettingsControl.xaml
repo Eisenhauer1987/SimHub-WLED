@@ -10,7 +10,66 @@
 
     <Grid>
         <styles:SHSection Title="WLED Settings">
+            <StackPanel><UserControl x:Class="Halcyon.WLED.SettingsControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:local="clr-namespace:Halcyon.WLED"
+             xmlns:styles="clr-namespace:SimHub.Plugins.Styles;assembly=SimHub.Plugins"
+             mc:Ignorable="d"
+             d:DesignHeight="360" d:DesignWidth="320">
+
+    <Grid>
+        <styles:SHSection Title="WLED Settings">
             <StackPanel>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Strip URL" Margin="0,0,10,6"/>
+                    <TextBox x:Name="UrlInput" Grid.Row="0" Grid.Column="1" Text="wled-table.local" Width="180" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Strip Port" Margin="0,0,10,6"/>
+                    <TextBox x:Name="PortInput" Grid.Row="1" Grid.Column="1" Text="21324" Width="180" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="LED Amount" Margin="0,0,10,6"/>
+                    <TextBox x:Name="LedAmountInput" Grid.Row="2" Grid.Column="1" Text="60" Width="180" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="3" Grid.Column="0" Text="LED Offset" Margin="0,0,10,6"/>
+                    <TextBox x:Name="LedOffsetInput" Grid.Row="3" Grid.Column="1" Text="0" Width="180" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="4" Grid.Column="0" Text="Mirror" Margin="0,0,10,6"/>
+                    <CheckBox x:Name="MirrorInput" Grid.Row="4" Grid.Column="1" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="5" Grid.Column="0" Text="Center" Margin="0,0,10,6"/>
+                    <CheckBox x:Name="CenterInput" Grid.Row="5" Grid.Column="1" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="6" Grid.Column="0" Text="RPM Rise Color" Margin="0,0,10,6"/>
+                    <TextBox x:Name="RiseColorInput" Grid.Row="6" Grid.Column="1" Text="#0000FF" Width="180" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="7" Grid.Column="0" Text="RPM Max Color" Margin="0,0,10,6"/>
+                    <TextBox x:Name="MaxColorInput" Grid.Row="7" Grid.Column="1" Text="#FF0000" Width="180" Margin="0,0,0,6"/>
+
+                    <styles:SHButtonPrimary Grid.Row="8" Grid.Column="1" Click="Apply" Content="Apply"/>
+                </Grid>
+            </StackPanel>
+        </styles:SHSection>
+    </Grid>
+</UserControl>
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition />
