@@ -4,7 +4,8 @@ This plugin connects [Simhub](https://www.simhubdash.com/) to a [WLED](https://k
 
 ## Features
 
-non-exhaustive list of (un)implemented features
+non-exhaustive list of implemented features
+- [x] idle behavior
 - [x] rpm indicator
   - [x] live rpms
   - [x] shift light
@@ -15,7 +16,10 @@ non-exhaustive list of (un)implemented features
   - [x] yellow
   - [x] red
   - [x] white
-  - [x] checkered 
+  - [x] checkered
+- [x] Spotter Warnings
+  - [x] left
+  - [x] right
 - [x] settings
   - [x] connection (host/port)
   - [x] led amount
