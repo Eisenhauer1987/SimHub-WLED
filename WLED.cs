@@ -13,6 +13,7 @@ namespace Halcyon.WLED
         public WLEDSettings Settings;
 
         private WLEDHelper LedHelper { get; set; }
+        private SettingsControl settingsControl;
 
         // Blink states consolidated into a small helper
         private class BlinkState
@@ -99,6 +100,7 @@ namespace Halcyon.WLED
             {
                 LedHelper.UpdateMaxColor(Settings.MaxColor);
                 LedHelper.UpdateSegments(Settings.SegmentColors, 3);
+                LedHelper.UpdatePhysicalSegments(Settings.PhysicalSegments);
             }
             catch
             {
@@ -120,12 +122,22 @@ namespace Halcyon.WLED
 
             if (!data.GameRunning)
             {
-                LedHelper.TurnOff();
-                return;
+                // Respect idle behavior: if configured to keep control during idle, do nothing
+                // (keep last state). Otherwise turn off the strip.
+                if (Settings != null && Settings.KeepControlDuringIdle)
+                {
+                    return;
+                }
+                else
+                {
+                    LedHelper.TurnOff();
+                    return;
+                }
             }
 
             // Treat flags as true when > 0.5 (robust vs. exact eq to 1.0)
             bool redFlag = false, checkeredFlag = false, yellowFlag = false, blueFlag = false, whiteFlag = false, greenFlag = false;
+            bool spotterLeft = false, spotterRight = false;
             var newDataObj = data.NewData;
             if (newDataObj != null)
             {
@@ -154,6 +166,28 @@ namespace Halcyon.WLED
                 p = ndType.GetProperty("Flag_Green") ?? ndType.GetProperty("FlagGreen");
                 if (p != null && (val = p.GetValue(newDataObj)) != null)
                     greenFlag = val is double dv6 ? dv6 > 0.5 : val is bool bv6 ? bv6 : val is int iv6 && iv6 != 0;
+
+                // Detect spotter warning specifically for left/right (SimHub: SpotterCarLeft / SpotterCarRight)
+                try
+                {
+                    var t = newDataObj.GetType();
+                    var pLeft = t.GetProperty("SpotterCarLeftDistance") ?? t.GetProperty("SpotterCarLeft") ?? t.GetProperty("Spotter_Car_Left") ?? t.GetProperty("SpotterLeft");
+                    var pRight = t.GetProperty("SpotterCarRightDistance") ?? t.GetProperty("SpotterCarRight") ?? t.GetProperty("Spotter_Car_Right") ?? t.GetProperty("SpotterRight");
+                    object v;
+                    if (pLeft != null && (v = pLeft.GetValue(newDataObj)) != null)
+                    {
+                        if (v is double dv) spotterLeft = dv > 0.5;
+                        else if (v is bool bv) spotterLeft = bv;
+                        else if (v is int iv) spotterLeft = iv != 0;
+                    }
+                    if (pRight != null && (v = pRight.GetValue(newDataObj)) != null)
+                    {
+                        if (v is double dv2) spotterRight = dv2 > 0.5;
+                        else if (v is bool bv2) spotterRight = bv2;
+                        else if (v is int iv2) spotterRight = iv2 != 0;
+                    }
+                }
+                catch { }
             }
 
             try
@@ -194,6 +228,33 @@ namespace Halcyon.WLED
                     return;
                 }
 
+                // If spotter warning detected and enabled for left/right, show red on respective physical segments
+                if ((spotterLeft || spotterRight) && Settings.EnableSpotterWarning)
+                {
+                    try
+                    {
+                        int segCount = Math.Max(1, LedHelper.PhysicalSegments);
+                        var active = new bool[segCount];
+                        // Map left to segment 0 and right to last segment
+                        if (spotterLeft)
+                        {
+                            active[0] = true;
+                        }
+                        if (spotterRight && segCount > 0)
+                        {
+                            active[segCount - 1] = true;
+                        }
+
+                        // Flags have higher priority and already handled above. For spotter, render red on active segments
+                        // but keep RPM display on non-affected segments.
+                        LedHelper.ShowRpmWithSpotter(data.NewData.Rpms, data.NewData.MaxRpm, data.NewData.CarSettings_RPMShiftLight1 == 1.0, active);
+                        settingsControl?.ShowSpotterGlow(true);
+                    }
+                    catch { }
+                    return;
+                }
+
+                // Otherwise normal RPM handling
                 var rpm = data.NewData.Rpms;
                 var maxRpm = data.NewData.MaxRpm;
                 var shouldShift = data.NewData.CarSettings_RPMShiftLight1 == 1.0;
@@ -227,7 +288,8 @@ namespace Halcyon.WLED
 
         public System.Windows.Controls.Control GetWPFSettingsControl(PluginManager pluginManager)
         {
-            return new SettingsControl(this);
+            settingsControl = new SettingsControl(this);
+            return settingsControl;
         }
     }
 }

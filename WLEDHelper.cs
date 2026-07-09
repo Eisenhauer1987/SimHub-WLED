@@ -20,9 +20,12 @@ namespace Halcyon.WLED
         // Expose the last-set hex values so callers can detect changes
         public string CurrentMaxHex { get; private set; }
 
-        // We support exactly 3 intermediate segments before the final MaxColor
+        // We support exactly 3 intermediate color segments before the final MaxColor
         private const int FixedSegments = 3;
         private List<(int, int, int)> SegmentColorsList { get; set; } = new List<(int, int, int)>();
+
+        // Number of physical segments on the strip (e.g., 2 for left/right)
+        public int PhysicalSegments { get; private set; } = 2;
 
         private UdpClient LedClient { get; set; }
 
@@ -64,6 +67,12 @@ namespace Halcyon.WLED
             }
         }
 
+        // Update number of physical segments
+        public void UpdatePhysicalSegments(int segments)
+        {
+            PhysicalSegments = Math.Max(1, segments);
+        }
+
         // Update only the Max color at runtime
         public void UpdateMaxColor(string maxColorHex)
         {
@@ -92,66 +101,213 @@ namespace Halcyon.WLED
             data.Add(0x01);
             data.Add(0x01);
 
-            if (shouldShift)
+            // Render each physical segment in parallel: same effect applied per-segment
+            for (int seg = 0; seg < PhysicalSegments; seg++)
             {
-                for (int i = left; i < right; i++)
+                int baseIndex = Offset + seg * LedAmount;
+
+                if (shouldShift)
                 {
-                    data.Add(BitConverter.GetBytes(i)[0]);
-                    data.AddRange(ColorToByteList(MaxColor));
+                    for (int i = 0; i < LedAmount; i++)
+                    {
+                        int ledIndex = baseIndex + i;
+                        data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                        data.AddRange(ColorToByteList(MaxColor));
+                    }
+                    continue;
                 }
-            }
-            else
-            {
+
                 if (Center)
                 {
-                    var center = right / 2;
+                    var center = LedAmount / 2;
                     int leftBorder = center - scaledAmount / 2;
                     int rightBorder = center + scaledAmount / 2;
 
                     if (Mirror)
                     {
-                        leftBorder = left + scaledAmount / 2;
-                        rightBorder = right - scaledAmount / 2;
+                        leftBorder = 0 + scaledAmount / 2;
+                        rightBorder = LedAmount - scaledAmount / 2;
                     }
 
-                    for (int i = left; i < leftBorder; i++)
+                    for (int i = 0; i < leftBorder; i++)
                     {
-                        data.Add(BitConverter.GetBytes(i)[0]);
+                        int ledIndex = baseIndex + i;
+                        data.Add(BitConverter.GetBytes(ledIndex)[0]);
                         data.AddRange(ColorToByteList(outerColor));
                     }
+
                     for (int i = leftBorder; i < rightBorder; i++)
                     {
-                        data.Add(BitConverter.GetBytes(i)[0]);
-                        var color = GetColorForPosition(i - left, LedAmount);
+                        int ledIndex = baseIndex + i;
+                        data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                        var color = GetColorForPosition(i, LedAmount);
                         if (Mirror) color = InvertColor(color);
                         data.AddRange(ColorToByteList(color));
                     }
-                    for (int i = rightBorder; i < right; i++)
+
+                    for (int i = rightBorder; i < LedAmount; i++)
                     {
-                        data.Add(BitConverter.GetBytes(i)[0]);
+                        int ledIndex = baseIndex + i;
+                        data.Add(BitConverter.GetBytes(ledIndex)[0]);
                         data.AddRange(ColorToByteList(outerColor));
                     }
                 }
                 else
                 {
-                    var border = left + scaledAmount;
+                    var border = scaledAmount;
                     if (Mirror)
                     {
-                        border = right - scaledAmount;
+                        // For mirror mode, lit LEDs are at the end of the segment
+                        for (int i = 0; i < LedAmount - border; i++)
+                        {
+                            int ledIndex = baseIndex + i;
+                            data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                            data.AddRange(ColorToByteList(outerColor));
+                        }
+                        for (int i = LedAmount - border; i < LedAmount; i++)
+                        {
+                            int ledIndex = baseIndex + i;
+                            data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                            var color = GetColorForPosition(i, LedAmount);
+                            data.AddRange(ColorToByteList(color));
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0; i < border; i++)
+                        {
+                            int ledIndex = baseIndex + i;
+                            data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                            var color = GetColorForPosition(i, LedAmount);
+                            data.AddRange(ColorToByteList(color));
+                        }
+                        for (int i = border; i < LedAmount; i++)
+                        {
+                            int ledIndex = baseIndex + i;
+                            data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                            data.AddRange(ColorToByteList(outerColor));
+                        }
+                    }
+                }
+            }
+
+            SendData(data);
+        }
+
+        // Render RPM per-segment but allow spotter override on specific physical segments.
+        // activeSpotterSegments: true = show red on this physical segment, false = show RPM on this segment
+        public void ShowRpmWithSpotter(double rpm, double maxRpm, bool shouldShift, bool[] activeSpotterSegments)
+        {
+            if (LedAmount <= 0 || maxRpm <= 0)
+            {
+                return;
+            }
+
+            int scaledAmount = (int)rpm / Math.Max(1, ((int)maxRpm / LedAmount));
+            (int, int, int) outerColor = (0, 0, 0);
+
+            var data = new List<byte>();
+            data.Add(0x01);
+            data.Add(0x01);
+
+            for (int seg = 0; seg < PhysicalSegments; seg++)
+            {
+                int baseIndex = Offset + seg * LedAmount;
+
+                bool spotterActive = activeSpotterSegments != null && seg < activeSpotterSegments.Length && activeSpotterSegments[seg];
+
+                if (spotterActive)
+                {
+                    // entire physical segment red
+                    for (int i = 0; i < LedAmount; i++)
+                    {
+                        int ledIndex = baseIndex + i;
+                        data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                        data.AddRange(ColorToByteList((255, 0, 0)));
+                    }
+                    continue;
+                }
+
+                if (shouldShift)
+                {
+                    for (int i = 0; i < LedAmount; i++)
+                    {
+                        int ledIndex = baseIndex + i;
+                        data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                        data.AddRange(ColorToByteList(MaxColor));
+                    }
+                    continue;
+                }
+
+                if (Center)
+                {
+                    var center = LedAmount / 2;
+                    int leftBorder = center - scaledAmount / 2;
+                    int rightBorder = center + scaledAmount / 2;
+
+                    if (Mirror)
+                    {
+                        leftBorder = 0 + scaledAmount / 2;
+                        rightBorder = LedAmount - scaledAmount / 2;
                     }
 
-                    for (int i = left; i < border + Offset; i++)
+                    for (int i = 0; i < leftBorder; i++)
                     {
-                        data.Add(BitConverter.GetBytes(i)[0]);
-                        var color = GetColorForPosition(i - left, LedAmount);
+                        int ledIndex = baseIndex + i;
+                        data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                        data.AddRange(ColorToByteList(outerColor));
+                    }
+
+                    for (int i = leftBorder; i < rightBorder; i++)
+                    {
+                        int ledIndex = baseIndex + i;
+                        data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                        var color = GetColorForPosition(i, LedAmount);
                         if (Mirror) color = InvertColor(color);
                         data.AddRange(ColorToByteList(color));
                     }
 
-                    for (int i = border; i < right; i++)
+                    for (int i = rightBorder; i < LedAmount; i++)
                     {
-                        data.Add(BitConverter.GetBytes(i)[0]);
+                        int ledIndex = baseIndex + i;
+                        data.Add(BitConverter.GetBytes(ledIndex)[0]);
                         data.AddRange(ColorToByteList(outerColor));
+                    }
+                }
+                else
+                {
+                    var border = scaledAmount;
+                    if (Mirror)
+                    {
+                        for (int i = 0; i < LedAmount - border; i++)
+                        {
+                            int ledIndex = baseIndex + i;
+                            data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                            data.AddRange(ColorToByteList(outerColor));
+                        }
+                        for (int i = LedAmount - border; i < LedAmount; i++)
+                        {
+                            int ledIndex = baseIndex + i;
+                            data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                            var color = GetColorForPosition(i, LedAmount);
+                            data.AddRange(ColorToByteList(color));
+                        }
+                    }
+                    else
+                    {
+                        for (int i = 0; i < border; i++)
+                        {
+                            int ledIndex = baseIndex + i;
+                            data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                            var color = GetColorForPosition(i, LedAmount);
+                            data.AddRange(ColorToByteList(color));
+                        }
+                        for (int i = border; i < LedAmount; i++)
+                        {
+                            int ledIndex = baseIndex + i;
+                            data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                            data.AddRange(ColorToByteList(outerColor));
+                        }
                     }
                 }
             }
@@ -190,6 +346,37 @@ namespace Halcyon.WLED
         public void TurnOff()
         {
             ShowSolid(0, 0, 0);
+        }
+
+        // Show spotter warning per physical segment. activeSegments length should be >= PhysicalSegments.
+        public void ShowSpotterSegments(bool[] activeSegments)
+        {
+            if (activeSegments == null) return;
+            if (LedAmount <= 0) return;
+
+            var data = new List<byte>();
+            data.Add(0x01);
+            data.Add(0x01);
+
+            bool any = false;
+            for (int seg = 0; seg < PhysicalSegments; seg++)
+            {
+                bool active = seg < activeSegments.Length && activeSegments[seg];
+                if (!active) continue;
+                any = true;
+                int baseIndex = Offset + seg * LedAmount;
+                for (int i = 0; i < LedAmount; i++)
+                {
+                    int ledIndex = baseIndex + i;
+                    data.Add(BitConverter.GetBytes(ledIndex)[0]);
+                    data.AddRange(ColorToByteList((255, 0, 0)));
+                }
+            }
+
+            if (any)
+            {
+                SendData(data);
+            }
         }
 
         private void SendData(List<byte> data)

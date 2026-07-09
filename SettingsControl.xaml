@@ -8,11 +8,20 @@
              xmlns:ui="clr-namespace:SimHub.Plugins.UI;assembly=SimHub.Plugins" 
              d:DesignHeight="360" d:DesignWidth="320">
 
-    <Grid>
+    <Grid x:Name="RootGrid">
         <styles:SHSection Title="WLED Settings">
             <StackPanel>
                 <Grid>
                     <Grid.RowDefinitions>
+                    <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
+                        <RowDefinition />
                         <RowDefinition />
                         <RowDefinition />
                         <RowDefinition />
@@ -52,7 +61,34 @@
                     <TextBlock Grid.Row="7" Grid.Column="0" Text="Segment Colors (CSV hex, 3 entries)" Margin="0,0,10,6"/>
                     <TextBox x:Name="SegmentColorsInput" Grid.Row="7" Grid.Column="1" Text="#0000FF,#00FF00,#FFFF00" Width="180" Margin="0,0,0,6"/>
 
-                    <styles:SHButtonPrimary Grid.Row="8" Grid.Column="1" Click="Apply" Content="Apply"/>
+                    <TextBlock Grid.Row="8" Grid.Column="0" Text="Idle: WLED Controller keep control of strip" Margin="0,0,10,6"/>
+                    <CheckBox x:Name="IdleKeepControlInput" Grid.Row="8" Grid.Column="1" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="9" Grid.Column="0" Text="Enable Red Flag" Margin="0,0,10,6"/>
+                    <CheckBox x:Name="FlagRedInput" Grid.Row="9" Grid.Column="1" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="10" Grid.Column="0" Text="Enable Checkered Flag" Margin="0,0,10,6"/>
+                    <CheckBox x:Name="FlagCheckeredInput" Grid.Row="10" Grid.Column="1" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="11" Grid.Column="0" Text="Enable Yellow Flag" Margin="0,0,10,6"/>
+                    <CheckBox x:Name="FlagYellowInput" Grid.Row="11" Grid.Column="1" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="12" Grid.Column="0" Text="Enable Blue Flag" Margin="0,0,10,6"/>
+                    <CheckBox x:Name="FlagBlueInput" Grid.Row="12" Grid.Column="1" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="13" Grid.Column="0" Text="Enable White Flag" Margin="0,0,10,6"/>
+                    <CheckBox x:Name="FlagWhiteInput" Grid.Row="13" Grid.Column="1" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="14" Grid.Column="0" Text="Enable Green Flag" Margin="0,0,10,6"/>
+                    <CheckBox x:Name="FlagGreenInput" Grid.Row="14" Grid.Column="1" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="15" Grid.Column="0" Text="Physical Segments (e.g. 2 = left+right)" Margin="0,0,10,6"/>
+                    <TextBox x:Name="PhysicalSegmentsInput" Grid.Row="15" Grid.Column="1" Text="2" Width="180" Margin="0,0,0,6"/>
+
+                    <TextBlock Grid.Row="16" Grid.Column="0" Text="Enable Spotter Warning (left/right)" Margin="0,0,10,6"/>
+                    <CheckBox x:Name="SpotterWarningInput" Grid.Row="16" Grid.Column="1" Margin="0,0,0,6"/>
+
+                    <styles:SHButtonPrimary Grid.Row="17" Grid.Column="1" Click="Apply" Content="Apply"/>
                 </Grid>
             </StackPanel>
         </styles:SHSection>

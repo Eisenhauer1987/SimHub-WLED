@@ -13,5 +13,21 @@ namespace Halcyon.WLED
         // Comma-separated list of hex colors for the intermediate segments (left-to-right)
         // Exactly three segment colors are expected.
         public string SegmentColors { get; set; } = "#0000FF,#00FF00,#FFFF00";
+        // Number of physical segments on the strip (e.g., 2 for left/right)
+        public int PhysicalSegments { get; set; } = 2;
+        // If true, keep controlling the strip when no game is running; otherwise release (turn off)
+        public bool KeepControlDuringIdle { get; set; } = true;
+        // Splotter warming (visual warming state)
+        public bool EnableSplotterWarming { get; set; } = false;
+        // Spotter warning (opponent warning) support
+        public bool EnableSpotterWarning { get; set; } = false;
+
+        // Flags enable/disable
+        public bool EnableFlagRed { get; set; } = true;
+        public bool EnableFlagCheckered { get; set; } = true;
+        public bool EnableFlagYellow { get; set; } = true;
+        public bool EnableFlagBlue { get; set; } = true;
+        public bool EnableFlagWhite { get; set; } = true;
+        public bool EnableFlagGreen { get; set; } = true;
     }
 }

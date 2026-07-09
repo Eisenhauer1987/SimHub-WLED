@@ -8,6 +8,7 @@ namespace Halcyon.WLED
     public partial class SettingsControl : UserControl
     {
         private readonly WLED plugin;
+        private System.Windows.Controls.Grid rootGrid;
 
 
 
@@ -24,6 +25,7 @@ namespace Halcyon.WLED
             this.plugin = plugin;
 
             // Use FindName to obtain references to named elements (avoids depending on generated fields)
+            rootGrid = (System.Windows.Controls.Grid)FindName("RootGrid");
             var urlTb = (TextBox)FindName("UrlInput");
             var portTb = (TextBox)FindName("PortInput");
             var ledAmountTb = (TextBox)FindName("LedAmountInput");
@@ -41,6 +43,44 @@ namespace Halcyon.WLED
             if (centerCb != null) centerCb.IsChecked = plugin.Settings.center;
             if (maxColorTb != null) maxColorTb.Text = plugin.Settings.MaxColor ?? string.Empty;
             if (segmentColorsTb != null) segmentColorsTb.Text = plugin.Settings.SegmentColors ?? string.Empty;
+            var physicalSegmentsTb = (TextBox)FindName("PhysicalSegmentsInput");
+            var spotterWarningCb = (CheckBox)FindName("SpotterWarningInput");
+            var idleKeepControlCb = (CheckBox)FindName("IdleKeepControlInput");
+            var flagRedCb = (CheckBox)FindName("FlagRedInput");
+            var flagCheckCb = (CheckBox)FindName("FlagCheckeredInput");
+            var flagYellowCb = (CheckBox)FindName("FlagYellowInput");
+            var flagBlueCb = (CheckBox)FindName("FlagBlueInput");
+            var flagWhiteCb = (CheckBox)FindName("FlagWhiteInput");
+            var flagGreenCb = (CheckBox)FindName("FlagGreenInput");
+
+            if (physicalSegmentsTb != null) physicalSegmentsTb.Text = plugin.Settings.PhysicalSegments.ToString();
+            if (spotterWarningCb != null) spotterWarningCb.IsChecked = plugin.Settings.EnableSpotterWarning;
+            if (idleKeepControlCb != null) idleKeepControlCb.IsChecked = plugin.Settings.KeepControlDuringIdle;
+            if (flagRedCb != null) flagRedCb.IsChecked = plugin.Settings.EnableFlagRed;
+            if (flagCheckCb != null) flagCheckCb.IsChecked = plugin.Settings.EnableFlagCheckered;
+            if (flagYellowCb != null) flagYellowCb.IsChecked = plugin.Settings.EnableFlagYellow;
+            if (flagBlueCb != null) flagBlueCb.IsChecked = plugin.Settings.EnableFlagBlue;
+            if (flagWhiteCb != null) flagWhiteCb.IsChecked = plugin.Settings.EnableFlagWhite;
+            if (flagGreenCb != null) flagGreenCb.IsChecked = plugin.Settings.EnableFlagGreen;
+        }
+
+        public void ShowSpotterGlow(bool active)
+        {
+            if (rootGrid == null) return;
+            // Update UI on dispatcher
+            rootGrid.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                rootGrid.Background = active ? System.Windows.Media.Brushes.DarkRed : System.Windows.Media.Brushes.Transparent;
+            }));
+        }
+
+        public void ShowSplotterGlow(bool active)
+        {
+            if (rootGrid == null) return;
+            rootGrid.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                rootGrid.Background = active ? System.Windows.Media.Brushes.IndianRed : System.Windows.Media.Brushes.Transparent;
+            }));
         }
 
 
@@ -64,6 +104,11 @@ namespace Halcyon.WLED
             var center = centerCb?.IsChecked == true;
             var maxColor = (maxColorTb?.Text ?? string.Empty).Trim();
             var segmentColorsText = (segmentColorsTb?.Text ?? string.Empty).Trim();
+            var physicalSegmentsTb = (TextBox)FindName("PhysicalSegmentsInput");
+            var spotterWarningCb = (CheckBox)FindName("SpotterWarningInput");
+
+            var physicalSegmentsText = (physicalSegmentsTb?.Text ?? string.Empty).Trim();
+            var spotterWarning = spotterWarningCb?.IsChecked == true;
 
             // Validate numeric inputs and ranges
             if (!TryParseIntInRange(portText, 1, 65535, out var port))
@@ -104,6 +149,26 @@ namespace Halcyon.WLED
             if (s.MaxColor != maxColor) { s.MaxColor = maxColor; changed = true; }
             // Enforce exactly 3 segments; only update the CSV list
             if (s.SegmentColors != segmentColorsText) { s.SegmentColors = segmentColorsText; changed = true; }
+            if (int.TryParse(physicalSegmentsText, out var physicalSegments) && physicalSegments > 0 && s.PhysicalSegments != physicalSegments) { s.PhysicalSegments = physicalSegments; changed = true; }
+            if (s.EnableSpotterWarning != spotterWarning) { s.EnableSpotterWarning = spotterWarning; changed = true; }
+
+            // Flags and idle settings
+            var idleKeepControlCb = (CheckBox)FindName("IdleKeepControlInput");
+            var flagRedCb = (CheckBox)FindName("FlagRedInput");
+            var flagCheckCb = (CheckBox)FindName("FlagCheckeredInput");
+            var flagYellowCb = (CheckBox)FindName("FlagYellowInput");
+            var flagBlueCb = (CheckBox)FindName("FlagBlueInput");
+            var flagWhiteCb = (CheckBox)FindName("FlagWhiteInput");
+            var flagGreenCb = (CheckBox)FindName("FlagGreenInput");
+
+            var idleKeep = idleKeepControlCb?.IsChecked == true;
+            if (s.KeepControlDuringIdle != idleKeep) { s.KeepControlDuringIdle = idleKeep; changed = true; }
+            if (s.EnableFlagRed != (flagRedCb?.IsChecked == true)) { s.EnableFlagRed = flagRedCb?.IsChecked == true; changed = true; }
+            if (s.EnableFlagCheckered != (flagCheckCb?.IsChecked == true)) { s.EnableFlagCheckered = flagCheckCb?.IsChecked == true; changed = true; }
+            if (s.EnableFlagYellow != (flagYellowCb?.IsChecked == true)) { s.EnableFlagYellow = flagYellowCb?.IsChecked == true; changed = true; }
+            if (s.EnableFlagBlue != (flagBlueCb?.IsChecked == true)) { s.EnableFlagBlue = flagBlueCb?.IsChecked == true; changed = true; }
+            if (s.EnableFlagWhite != (flagWhiteCb?.IsChecked == true)) { s.EnableFlagWhite = flagWhiteCb?.IsChecked == true; changed = true; }
+            if (s.EnableFlagGreen != (flagGreenCb?.IsChecked == true)) { s.EnableFlagGreen = flagGreenCb?.IsChecked == true; changed = true; }
 
             if (changed)
             {
