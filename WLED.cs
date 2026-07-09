@@ -15,29 +15,18 @@ namespace Halcyon.WLED
         private WLEDHelper LedHelper { get; set; }
         private bool yellowBlinkState = false;
         private DateTime lastYellowBlinkToggle = DateTime.MinValue;
+        private bool blueBlinkState = false;
+        private DateTime lastBlueBlinkToggle = DateTime.MinValue;
+        private bool redBlinkState = false;
+        private DateTime lastRedBlinkToggle = DateTime.MinValue;
+        private bool checkeredBlinkState = false;
+        private DateTime lastCheckeredBlinkToggle = DateTime.MinValue;
 
-        /// <summary>
-        /// Instance of the current plugin manager
-        /// </summary>
         public PluginManager PluginManager { get; set; }
 
-        /// <summary>
-        /// Gets the left menu icon. Icon must be 24x24 and compatible with black and white display.
-        /// </summary>
         public ImageSource PictureIcon => this.ToIcon(Properties.Resources.sdkmenuicon);
-
-        /// <summary>
-        /// Gets a short plugin title to show in left menu. Return null if you want to use the title as defined in PluginName attribute.
-        /// </summary>
         public string LeftMenuTitle => "WLED";
 
-        /// <summary>
-        /// Called one time per game data update, contains all normalized game data,
-        /// raw data are intentionnally "hidden" under a generic object type (A plugin SHOULD NOT USE IT)
-        /// This method is on the critical path, it must execute as fast as possible and avoid throwing any error
-        /// </summary>
-        /// <param name="pluginManager"></param>
-        /// <param name="data">Current game data, including current and previous data frame.</param>
         public void DataUpdate(PluginManager pluginManager, ref GameData data)
         {
             LedHelper.LedAmount = Settings.ledAmount;
@@ -51,7 +40,36 @@ namespace Halcyon.WLED
                 return;
             }
 
-            var yellowFlag = data.NewData.Flag_Yellow == 1.0;
+            bool redFlag = data.NewData.Flag_Red == 1.0;
+            bool checkeredFlag = data.NewData.Flag_Checkered == 1.0;
+            bool yellowFlag = data.NewData.Flag_Yellow == 1.0;
+            bool blueFlag = data.NewData.Flag_Blue == 1.0;
+            bool whiteFlag = data.NewData.Flag_White == 1.0;
+            bool greenFlag = data.NewData.Flag_Green == 1.0;
+
+            if (redFlag)
+            {
+                if ((DateTime.Now - lastRedBlinkToggle).TotalMilliseconds >= 200)
+                {
+                    redBlinkState = !redBlinkState;
+                    lastRedBlinkToggle = DateTime.Now;
+                }
+
+                LedHelper.ShowSolidOrBlink(redBlinkState, 255, 0, 0);
+                return;
+            }
+
+            if (checkeredFlag)
+            {
+                if ((DateTime.Now - lastCheckeredBlinkToggle).TotalMilliseconds >= 150)
+                {
+                    checkeredBlinkState = !checkeredBlinkState;
+                    lastCheckeredBlinkToggle = DateTime.Now;
+                }
+
+                LedHelper.ShowSolidOrBlink(checkeredBlinkState, 255, 255, 255);
+                return;
+            }
 
             if (yellowFlag)
             {
@@ -61,7 +79,31 @@ namespace Halcyon.WLED
                     lastYellowBlinkToggle = DateTime.Now;
                 }
 
-                LedHelper.ShowYellowBlink(yellowBlinkState);
+                LedHelper.ShowSolidOrBlink(yellowBlinkState, 255, 200, 0);
+                return;
+            }
+
+            if (blueFlag)
+            {
+                if ((DateTime.Now - lastBlueBlinkToggle).TotalMilliseconds >= 300)
+                {
+                    blueBlinkState = !blueBlinkState;
+                    lastBlueBlinkToggle = DateTime.Now;
+                }
+
+                LedHelper.ShowSolidOrBlink(blueBlinkState, 0, 0, 255);
+                return;
+            }
+
+            if (whiteFlag)
+            {
+                LedHelper.ShowSolid(255, 255, 255);
+                return;
+            }
+
+            if (greenFlag)
+            {
+                LedHelper.ShowSolid(0, 255, 0);
                 return;
             }
 
@@ -69,6 +111,35 @@ namespace Halcyon.WLED
             var maxRpm = data.NewData.MaxRpm;
             var shouldShift = data.NewData.CarSettings_RPMShiftLight1 == 1.0;
 
+            LedHelper.ShowRpm(rpm, maxRpm, shouldShift);
+        }
+
+        public void End(PluginManager pluginManager)
+        {
+            this.SaveCommonSettings("GeneralSettings", Settings);
+        }
+
+        public System.Windows.Controls.Control GetWPFSettingsControl(PluginManager pluginManager)
+        {
+            return new SettingsControl(this);
+        }
+
+        public void Init(PluginManager pluginManager)
+        {
+            SimHub.Logging.Current.Info("Starting plugin");
+
+            Settings = this.ReadCommonSettings<WLEDSettings>("GeneralSettings", () => new WLEDSettings());
+
+            LedHelper = new WLEDHelper(
+                Settings.stripUrl,
+                Settings.stripPort,
+                Settings.RiseColor,
+                Settings.MaxColor
+            );
+            LedHelper.LedAmount = Settings.ledAmount;
+        }
+    }
+}
             LedHelper.ShowRpm(rpm, maxRpm, shouldShift);
         }
 
