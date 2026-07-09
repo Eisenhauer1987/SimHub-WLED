@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
+using System.Windows.Media;
 
 namespace Halcyon.WLED
 {
@@ -19,13 +20,13 @@ namespace Halcyon.WLED
 
         private UdpClient LedClient { get; set; }
 
-        public WLEDHelper(string host, int port)
+        public WLEDHelper(string host, int port, string riseColorHex, string maxColorHex)
         {
             this.host = host;
             this.port = port;
             LedClient = new UdpClient(host, port);
-            RiseColor = (0, 0, 255);
-            MaxColor = (255, 0, 0);
+            RiseColor = ParseColor(riseColorHex, (0, 0, 255));
+            MaxColor = ParseColor(maxColorHex, (255, 0, 0));
         }
 
         public void ShowRpm(double rpm, double maxRpm, bool shouldShift)
@@ -35,8 +36,7 @@ namespace Halcyon.WLED
                 return;
             }
 
-            int scaledAmount = (int)rpm / ((int)maxRpm / LedAmount);
-
+            int scaledAmount = (int)rpm / Math.Max(1, ((int)maxRpm / LedAmount));
             int left = 0 + Offset;
             int right = LedAmount + Offset;
 
@@ -107,49 +107,75 @@ namespace Halcyon.WLED
                 }
             }
 
-            var dataArray = data.ToArray();
-            LedClient.Send(dataArray, dataArray.Length);
+            SendData(data);
         }
 
-        public void ShowYellowBlink(bool blinkOn)
+        public void ShowSolid(int r, int g, int b)
         {
             var data = new List<byte>();
             data.Add(0x01);
             data.Add(0x01);
 
-            var color = blinkOn ? (255, 200, 0) : (0, 0, 0);
-
             for (int i = 0; i < LedAmount; i++)
             {
                 int ledIndex = i + Offset;
                 data.Add(BitConverter.GetBytes(ledIndex)[0]);
-                data.AddRange(ColorToByteList(color));
+                data.AddRange(ColorToByteList((r, g, b)));
             }
 
-            var dataArray = data.ToArray();
-            LedClient.Send(dataArray, dataArray.Length);
+            SendData(data);
+        }
+
+        public void ShowSolidOrBlink(bool blinkOn, int r, int g, int b)
+        {
+            if (blinkOn)
+            {
+                ShowSolid(r, g, b);
+            }
+            else
+            {
+                TurnOff();
+            }
         }
 
         public void TurnOff()
         {
-            var data = new List<byte>();
-            data.Add(0x01);
-            data.Add(0x01);
+            ShowSolid(0, 0, 0);
+        }
 
-            for (int i = 0; i < LedAmount; i++)
-            {
-                int ledIndex = i + Offset;
-                data.Add(BitConverter.GetBytes(ledIndex)[0]);
-                data.AddRange(ColorToByteList((0, 0, 0)));
-            }
-
+        private void SendData(List<byte> data)
+        {
             var dataArray = data.ToArray();
             LedClient.Send(dataArray, dataArray.Length);
         }
 
-        private List<Byte> ColorToByteList((int, int, int) color)
+        private (int, int, int) ParseColor(string hex, (int, int, int) fallback)
         {
-            return new List<Byte>
+            try
+            {
+                if (string.IsNullOrWhiteSpace(hex))
+                    return fallback;
+
+                hex = hex.Trim().TrimStart('#');
+
+                if (hex.Length != 6)
+                    return fallback;
+
+                int r = Convert.ToInt32(hex.Substring(0, 2), 16);
+                int g = Convert.ToInt32(hex.Substring(2, 2), 16);
+                int b = Convert.ToInt32(hex.Substring(4, 2), 16);
+
+                return (r, g, b);
+            }
+            catch
+            {
+                return fallback;
+            }
+        }
+
+        private List<byte> ColorToByteList((int, int, int) color)
+        {
+            return new List<byte>
             {
                 BitConverter.GetBytes(color.Item1)[0],
                 BitConverter.GetBytes(color.Item2)[0],
