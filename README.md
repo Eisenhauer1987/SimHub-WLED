@@ -9,15 +9,19 @@ non-exhaustive list of (un)implemented features
   - [x] live rpms
   - [x] shift light
   - [x] mirror/center
-- [ ] indicators
-- [ ] headlights
-- [ ] settings
+- [x] flags
+  - [x] green
+  - [x] blue
+  - [x] yellow
+  - [x] red
+  - [x] white
+  - [x] checkered 
+- [x] settings
   - [x] connection (host/port)
   - [x] led amount
   - [x] offset
-  - [ ] colors
-  - [ ] segment size
-  - [ ] segment order
+  - [x] rpm segment colors
+  
 
 ## Installation
 
